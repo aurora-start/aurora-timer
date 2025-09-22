@@ -5,17 +5,22 @@ const notion = new Client({ auth: process.env.NOTION_TOKEN });
 
 export async function POST(req) {
   try {
-    const { taskId, userId, notionPageId } = await req.json();
+    let { userId, notionPageId } = await req.json();
 
-    // Normalizamos el pageId (Notion no admite guiones en UUID)
-    const pageId = notionPageId.replace(/-/g, "");
+    // Fallbacks
+    if (!userId) userId = "u1";
+    if (!notionPageId) {
+      return new Response(JSON.stringify({ ok: false, message: "Falta notionPageId" }), { status: 400 });
+    }
+
+    const finalPageId = notionPageId.replace(/-/g, "").trim();
 
     const client = await clientPromise;
     const db = client.db("timer");
 
     // 1. Buscar timer activo
     const activeEntry = await db.collection("timeEntries").findOne({
-      taskId,
+      taskId: finalPageId,
       userId,
       endTime: null,
     });
@@ -33,20 +38,23 @@ export async function POST(req) {
     await db.collection("timeEntries").updateOne({ _id: activeEntry._id }, { $set: { endTime, durationHours } });
 
     // 4. Actualizar acumulado en `tasks`
-    await db.collection("tasks").updateOne({ _id: taskId }, { $inc: { totalHours: durationHours } }, { upsert: true });
+    await db.collection("tasks").updateOne({ _id: finalPageId }, { $inc: { totalHours: durationHours } }, { upsert: true });
 
-    // 5. Obtener el acumulado actualizado
-    const taskDoc = await db.collection("tasks").findOne({ _id: taskId });
-    const totalHours = taskDoc.totalHours || durationHours;
+    const taskDoc = await db.collection("tasks").findOne({ _id: finalPageId });
+    const totalHours = taskDoc?.totalHours || durationHours;
 
-    // 6. Actualizar en Notion con el acumulado real
-    await notion.pages.update({
-      page_id: pageId,
-      properties: {
-        Estado: { status: { name: "Listo" } },
-        "Horas acumuladas": { number: totalHours },
-      },
-    });
+    // 5. Actualizar en Notion
+    try {
+      await notion.pages.update({
+        page_id: finalPageId,
+        properties: {
+          Estado: { status: { name: "Listo" } },
+          "Horas acumuladas": { number: totalHours },
+        },
+      });
+    } catch (err) {
+      console.error("Error actualizando Notion:", err.body || err.message);
+    }
 
     return new Response(
       JSON.stringify({
