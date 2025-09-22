@@ -48,7 +48,7 @@ export async function POST(req) {
       await notion.pages.update({
         page_id: finalPageId,
         properties: {
-          Estado: { status: { name: "Listo" } },
+          Estado: { status: { name: "En progreso" } },
           "Horas acumuladas": { number: totalHours },
         },
       });

@@ -45,7 +45,7 @@ export async function POST(req) {
       await notion.pages.update({
         page_id: finalPageId,
         properties: {
-          Estado: { status: { name: "En progreso" } },
+          Estado: { status: { name: "Trabajando" } },
         },
       });
     } catch (err) {

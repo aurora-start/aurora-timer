@@ -29,7 +29,7 @@ export default function TimerWidget({ taskId, userId, notionPageId }) {
       <button onClick={() => callApi("/api/stop")} disabled={loading}>
         Detener
       </button>
-      <div style={{ marginTop: 10, fontSize: 14 }}>{status}</div>
+      <div style={{ marginTop: 10, fontSize: 14, color: "#fff" }}>{status}</div>
     </div>
   );
 }
